@@ -1,6 +1,6 @@
 {
   "name": "obsidian-arbourist",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Design folder structures in Obsidian notes: live trees, snapshots, comments, and baked static views.",
   "main": "main.js",
   "type": "module",
