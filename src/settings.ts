@@ -34,7 +34,7 @@ export class ArchitectSettingTab extends PluginSettingTab {
           type: "text",
           key: "blueprintsFolder",
           defaultValue: "Blueprints",
-          validate: (value: string) => (value.trim() ? undefined : "Enter a folder name."),
+          validate: (value) => (value.trim() ? undefined : "Enter a folder name."),
         },
       },
       {

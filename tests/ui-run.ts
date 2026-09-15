@@ -19,6 +19,14 @@ function testCreateEl(tag: string, o?: string | { cls?: string; text?: string })
 }
 (globalThis as { createEl?: typeof testCreateEl }).createEl = testCreateEl;
 (window as { createEl?: typeof testCreateEl }).createEl = testCreateEl;
+Object.defineProperty(window.HTMLElement.prototype, "createEl", {
+  configurable: true,
+  value(this: HTMLElement, tag: string, o?: string | { cls?: string; text?: string }) {
+    const node = testCreateEl(tag, o);
+    this.appendChild(node);
+    return node;
+  },
+});
 try {
   Object.defineProperty(globalThis, "navigator", {
     value: { clipboard: { async writeText() {} } },
