@@ -28,7 +28,6 @@ export interface ArchitectDoc {
 }
 
 export const DEFAULT_IGNORE = [
-  ".obsidian",
   ".git",
   "node_modules",
   ".DS_Store",

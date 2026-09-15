@@ -40,9 +40,9 @@ export function pickVaultFolder(app: App): Promise<string | null> {
       settled = true;
       resolve(path);
     });
-    const close = modal.onClose;
+    const close = modal.onClose.bind(modal);
     modal.onClose = () => {
-      close?.();
+      close();
       if (!settled) resolve(null);
     };
     modal.open();

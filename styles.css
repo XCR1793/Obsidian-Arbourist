@@ -65,6 +65,10 @@
   cursor: not-allowed;
 }
 
+.fa-btn.fa-open-view {
+  align-self: flex-start;
+}
+
 .fa-btn.mod-cta {
   background: var(--interactive-accent);
   color: var(--text-on-accent, #fff);
@@ -254,8 +258,7 @@
 .fa-name-text.is-link {
   color: var(--link-color, var(--text-accent));
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--link-underline, transparent);
+  border-bottom: 1px solid var(--link-underline, var(--text-accent));
 }
 
 .arbourist.is-embed .fa-toolbar,
@@ -291,10 +294,8 @@
   display: block;
 }
 
-.markdown-preview-view pre:has(> code.language-arbourist-static),
-.markdown-rendered pre:has(> code.language-arbourist-static),
 .fa-static-store {
-  display: none !important;
+  display: none;
 }
 
 .arbourist.is-comments-click .fa-col-desc {
@@ -318,9 +319,11 @@
   color: transparent;
 }
 
+.markdown-preview-view .internal-embed.arbourist-embed,
+.markdown-source-view .internal-embed.arbourist-embed,
 .internal-embed.arbourist-embed {
   display: block;
-  height: auto !important;
+  height: auto;
   width: 100%;
   background: transparent;
   border: none;
@@ -377,8 +380,8 @@
 }
 
 .fa-check {
-  font-weight: 400 !important;
-  display: flex !important;
+  font-weight: 400;
+  display: flex;
   align-items: center;
   gap: 8px;
 }

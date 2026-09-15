@@ -1,5 +1,5 @@
-import { existsSync, promises as fs } from "fs";
-import { basename, join } from "path";
+import { existsSync, promises as fs, type Dirent } from "node:fs";
+import { basename, join } from "node:path";
 import { buildTreeFromLister, DEFAULT_SCAN, type ScanOptions } from "./scan-core";
 import type { ArchNode } from "./model";
 
@@ -19,7 +19,7 @@ export async function scanFsFolder(absPath: string, options: Partial<ScanOptions
   return buildTreeFromLister(rootName, rootName, async (rel) => {
     const suffix = rel === rootName ? "" : rel.slice(rootName.length).replace(/^[/\\]/, "");
     const full = suffix ? join(absPath, suffix) : absPath;
-    const names = await fs.readdir(full, { withFileTypes: true });
+    const names: Dirent[] = await fs.readdir(full, { withFileTypes: true });
     return names.map((entry) => ({
       name: entry.name,
       isDirectory: entry.isDirectory(),

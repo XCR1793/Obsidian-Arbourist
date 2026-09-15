@@ -65,7 +65,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 function iconButton(label: string, extraClass = ""): HTMLButtonElement {
-  const button = el("button", `fa-btn ${extraClass}`.trim()) as HTMLButtonElement;
+  const button = el("button", `fa-btn ${extraClass}`.trim());
   button.type = "button";
   button.textContent = label;
   return button;
@@ -155,8 +155,8 @@ export function mountArchitect(
     const refreshBtn = iconButton("Refresh");
     refreshBtn.title = "Re-scan the live folder";
     refreshBtn.disabled = !isLive() || !handlers.onRefresh;
-    refreshBtn.addEventListener("click", async () => {
-      await handlers.onRefresh?.();
+    refreshBtn.addEventListener("click", () => {
+      void handlers.onRefresh?.();
     });
 
     const cloneBtn = iconButton("Clone as snapshot");
@@ -169,17 +169,19 @@ export function mountArchitect(
     });
 
     const copyBtn = iconButton("Copy tree");
-    copyBtn.addEventListener("click", async () => {
-      const text = toAsciiDoc(doc);
-      try {
-        await navigator.clipboard.writeText(text);
-        copyBtn.textContent = "Copied";
-        setTimeout(() => {
-          copyBtn.textContent = "Copy tree";
-        }, 1200);
-      } catch {
-        copyBtn.textContent = "Copy failed";
-      }
+    copyBtn.addEventListener("click", () => {
+      void (async () => {
+        const text = toAsciiDoc(doc);
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = "Copied";
+          window.setTimeout(() => {
+            copyBtn.textContent = "Copy tree";
+          }, 1200);
+        } catch {
+          copyBtn.textContent = "Copy failed";
+        }
+      })();
     });
 
     const collapseBtn = iconButton("Collapse");
@@ -270,7 +272,7 @@ export function mountArchitect(
     }
 
     if (board.namesEditable) {
-      const nameInput = el("input", "fa-name") as HTMLInputElement;
+      const nameInput = el("input", "fa-name");
       nameInput.value = node.name;
       nameInput.placeholder = node.type === "folder" ? "folder" : "file";
       nameInput.size = Math.max(node.name.length, 4);
@@ -336,7 +338,7 @@ export function mountArchitect(
     if (board.comments !== "off") {
       const descCol = el("div", "fa-col-desc");
       descCol.appendChild(el("span", "fa-dash", "—"));
-      const descInput = el("input", "fa-desc") as HTMLInputElement;
+      const descInput = el("input", "fa-desc");
       descInput.value = node.description;
       descInput.placeholder = "";
       descInput.addEventListener("click", (event) => {
@@ -371,7 +373,7 @@ export function mountArchitect(
 
     if (board.chrome === "editor" && node.type === "file") {
       const linkCol = el("div", "fa-col-link");
-      const linkInput = el("input", "fa-link") as HTMLInputElement;
+      const linkInput = el("input", "fa-link");
       linkInput.value = node.link ?? "";
       linkInput.placeholder = "[[link]]";
       linkInput.size = Math.max((node.link ?? "").length, 8);
@@ -503,20 +505,22 @@ export function mountArchitect(
     const pathRow = el("div", "fa-field");
     pathRow.appendChild(el("label", "", "Path"));
     const pathWrap = el("div", "fa-path-wrap");
-    const pathInput = el("input", "fa-path") as HTMLInputElement;
+    const pathInput = el("input", "fa-path");
     pathInput.value = draft.path;
     pathInput.placeholder = draft.sourceKind === "vault" ? "folder/inside/vault" : "/path/to/folder";
     pathInput.addEventListener("input", () => {
       draft.path = pathInput.value;
     });
     const browse = iconButton("Browse");
-    browse.addEventListener("click", async () => {
-      const picked =
-        draft.sourceKind === "vault" ? await host.pickVaultFolder?.() : await host.pickFsFolder?.();
-      if (picked) {
-        draft.path = picked;
-        pathInput.value = picked;
-      }
+    browse.addEventListener("click", () => {
+      void (async () => {
+        const picked =
+          draft.sourceKind === "vault" ? await host.pickVaultFolder?.() : await host.pickFsFolder?.();
+        if (picked) {
+          draft.path = picked;
+          pathInput.value = picked;
+        }
+      })();
     });
     pathWrap.append(pathInput, browse);
     pathRow.appendChild(pathWrap);
@@ -542,8 +546,8 @@ export function mountArchitect(
     includeRow.appendChild(includeSeg);
 
     const linkRow = el("div", "fa-field");
-    const linkLabel = el("label", "fa-check") as HTMLLabelElement;
-    const linkCheck = el("input") as HTMLInputElement;
+    const linkLabel = el("label", "fa-check");
+    const linkCheck = el("input");
     linkCheck.type = "checkbox";
     linkCheck.checked = draft.linkFiles;
     linkCheck.addEventListener("change", () => {
@@ -586,21 +590,23 @@ export function mountArchitect(
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) close();
     });
-    ok.addEventListener("click", async () => {
-      draft.path = pathInput.value.trim();
-      if (!draft.path) {
-        pathInput.focus();
-        return;
-      }
-      ok.disabled = true;
-      try {
-        await handlers.onImport(draft);
-        close();
-      } catch (error) {
-        ok.disabled = false;
-        const message = error instanceof Error ? error.message : String(error);
-        notice.textContent = message;
-      }
+    ok.addEventListener("click", () => {
+      void (async () => {
+        draft.path = pathInput.value.trim();
+        if (!draft.path) {
+          pathInput.focus();
+          return;
+        }
+        ok.disabled = true;
+        try {
+          await handlers.onImport(draft);
+          close();
+        } catch (error) {
+          ok.disabled = false;
+          const message = error instanceof Error ? error.message : String(error);
+          notice.textContent = message;
+        }
+      })();
     });
     footer.append(cancel, ok);
 

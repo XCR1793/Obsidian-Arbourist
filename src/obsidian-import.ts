@@ -14,7 +14,12 @@ export async function scanVaultFolder(app: App, vaultPath: string, options: Part
   }
   const rootName = folder.name || app.vault.getName() || "vault";
   const rootRel = folder.path;
-  const opts: ScanOptions = { ...DEFAULT_SCAN, sourceKind: "vault", ...options };
+  const opts: ScanOptions = {
+    ...DEFAULT_SCAN,
+    sourceKind: "vault",
+    ...options,
+    ignore: [...DEFAULT_SCAN.ignore, ...(options.ignore ?? []), app.vault.configDir],
+  };
   return buildTreeFromLister(
     rootName,
     rootRel,
@@ -76,13 +81,13 @@ export async function refreshLiveDoc(app: App, doc: ArchitectDoc): Promise<Archi
 export async function pickComputerFolder(): Promise<string | null> {
   const attempts: Array<() => Promise<string | null>> = [
     async () => {
-      const electron = require("electron") as {
+      const electron = loadNodeModule<{
         remote?: { dialog?: ElectronDialog; getCurrentWindow?: () => unknown };
         dialog?: ElectronDialog;
-      };
-      const dialog = electron.remote?.dialog ?? electron.dialog;
+      }>("electron");
+      const dialog = electron?.remote?.dialog ?? electron?.dialog;
       if (!dialog?.showOpenDialog) return null;
-      const parent = electron.remote?.getCurrentWindow?.();
+      const parent = electron?.remote?.getCurrentWindow?.();
       const result = await dialog.showOpenDialog(parent, {
         title: "Choose a folder to import",
         properties: ["openDirectory"],
@@ -91,10 +96,11 @@ export async function pickComputerFolder(): Promise<string | null> {
       return result?.filePaths?.[0] ?? null;
     },
     async () => {
-      const remote = require("@electron/remote") as {
+      const remote = loadNodeModule<{
         dialog: ElectronDialog;
         getCurrentWindow: () => unknown;
-      };
+      }>("@electron/remote");
+      if (!remote?.dialog?.showOpenDialog) return null;
       const result = await remote.dialog.showOpenDialog(remote.getCurrentWindow(), {
         title: "Choose a folder to import",
         properties: ["openDirectory"],
@@ -119,4 +125,14 @@ interface ElectronDialog {
     window: unknown,
     options: { title: string; properties: string[] },
   ) => Promise<{ canceled?: boolean; filePaths?: string[] }>;
+}
+
+function loadNodeModule<T>(id: string): T | null {
+  const req = (globalThis as { require?: (name: string) => T }).require;
+  if (typeof req !== "function") return null;
+  try {
+    return req(id);
+  } catch {
+    return null;
+  }
 }

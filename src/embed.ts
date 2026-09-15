@@ -49,7 +49,11 @@ export class FolderEmbed extends MarkdownRenderChild {
     super(containerEl);
   }
 
-  async onload(): Promise<void> {
+  onload(): void {
+    void this.mountEmbed();
+  }
+
+  private async mountEmbed(): Promise<void> {
     try {
       this.mount?.destroy();
       this.mount = null;
@@ -61,10 +65,8 @@ export class FolderEmbed extends MarkdownRenderChild {
 
       const folder = resolveVaultFolder(this.plugin, this.query.path, this.sourcePath);
       if (!folder) {
-        this.containerEl.replaceChildren();
-        const missing = document.createElement("p");
-        missing.textContent = `Folder not found: ${this.query.path || "/"}`;
-        this.containerEl.append(missing);
+        this.containerEl.empty();
+        this.containerEl.createEl("p", { text: `Folder not found: ${this.query.path || "/"}` });
         return;
       }
 
@@ -97,7 +99,7 @@ export class FolderEmbed extends MarkdownRenderChild {
           },
           onImport: async () => {},
           onRefresh: async () => {
-            await this.onload();
+            await this.mountEmbed();
           },
         },
         {
@@ -115,10 +117,8 @@ export class FolderEmbed extends MarkdownRenderChild {
         },
       );
     } catch (error) {
-      this.containerEl.replaceChildren();
-      const failed = document.createElement("p");
-      failed.textContent = error instanceof Error ? error.message : String(error);
-      this.containerEl.append(failed);
+      this.containerEl.empty();
+      this.containerEl.createEl("p", { text: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -136,10 +136,8 @@ export class FolderEmbed extends MarkdownRenderChild {
           this.showBaked(existing);
           return;
         }
-        this.containerEl.replaceChildren();
-        const missing = document.createElement("p");
-        missing.textContent = `Nothing to bake, and folder not found: ${this.query.path || "/"}`;
-        this.containerEl.append(missing);
+        this.containerEl.empty();
+        this.containerEl.createEl("p", { text: `Nothing to bake, and folder not found: ${this.query.path || "/"}` });
         return;
       }
       await this.plugin.bakeStaticEmbed(this.sourcePath, this.embedSrc, ascii);
@@ -191,10 +189,8 @@ export class FolderEmbed extends MarkdownRenderChild {
   }
 
   private showBaked(ascii: string): void {
-    const pre = document.createElement("pre");
-    pre.className = "fa-baked";
-    pre.textContent = ascii;
-    this.containerEl.replaceChildren(pre);
+    this.containerEl.empty();
+    this.containerEl.createEl("pre", { cls: "fa-baked", text: ascii });
     this.containerEl.classList.add("arbourist-embed", "is-static-bake");
     window.requestAnimationFrame(() => hideFollowingBake(this.containerEl));
   }

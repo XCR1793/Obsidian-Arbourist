@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 import type FolderArchitectPlugin from "./main";
 
 export interface ArchitectSettings {
@@ -25,10 +25,44 @@ export class ArchitectSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      {
+        name: "Blueprints folder",
+        desc: "New blueprints are created here.",
+        control: { type: "text", key: "blueprintsFolder" },
+      },
+      {
+        name: "Import files by default",
+        desc: "When importing, include files as well as folders.",
+        control: { type: "toggle", key: "defaultIncludeFiles" },
+      },
+      {
+        name: "Create wikilinks by default",
+        desc: "Only applies to vault imports. Leave off if you want a copy of a structure that may not exist anymore.",
+        control: { type: "toggle", key: "defaultLinkFiles" },
+      },
+      {
+        name: "Max import depth",
+        desc: "Prevents runaway scans of huge trees.",
+        control: { type: "slider", key: "maxDepth", min: 2, max: 40, step: 1 },
+      },
+    ];
+  }
+
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    await super.setControlValue(key, value);
+    if (key === "blueprintsFolder") {
+      const next = typeof value === "string" ? value.trim() : "";
+      this.plugin.settings.blueprintsFolder = next || "Blueprints";
+    }
+    await this.plugin.saveSettings();
+  }
+
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Arbourist" });
+    new Setting(containerEl).setName("Arbourist").setHeading();
 
     new Setting(containerEl)
       .setName("Blueprints folder")
@@ -67,7 +101,6 @@ export class ArchitectSettingTab extends PluginSettingTab {
         slider
           .setLimits(2, 40, 1)
           .setValue(this.plugin.settings.maxDepth)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.maxDepth = value;
             await this.plugin.saveSettings();

@@ -21,7 +21,7 @@ export default class FolderArchitectPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE, (leaf) => new ArchitectView(leaf, this));
 
-    this.addRibbonIcon("folder-tree", "New Arbourist blueprint", () => {
+    this.addRibbonIcon("folder-tree", "New blueprint", () => {
       void this.createBlueprint();
     });
 
@@ -33,7 +33,7 @@ export default class FolderArchitectPlugin extends Plugin {
 
     this.addCommand({
       id: "open-in-architect",
-      name: "Open current file in Arbourist",
+      name: "Open current file",
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!file) return false;
@@ -267,8 +267,7 @@ export default class FolderArchitectPlugin extends Plugin {
       },
     );
 
-    const openBtn = el.createEl("button", { text: "Open in Arbourist", cls: "fa-btn" });
-    openBtn.style.alignSelf = "flex-start";
+    const openBtn = el.createEl("button", { text: "Open in editor", cls: "fa-btn fa-open-view" });
     openBtn.addEventListener("click", () => {
       if (file instanceof TFile) void this.openInView(file);
     });
