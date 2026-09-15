@@ -325,6 +325,7 @@
   background: transparent;
   border: none;
   padding: 0;
+  cursor: default;
 }
 
 .internal-embed.arbourist-embed > .markdown-embed-title,

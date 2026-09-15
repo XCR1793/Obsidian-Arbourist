@@ -248,7 +248,11 @@ export function mountArchitect(
     const node = flat.node;
     const row = el("div", `fa-row${node.id === selectedId ? " is-selected" : ""}${node.missing ? " is-missing" : ""}${node.description.trim() ? " has-comment" : ""}${commentingId === node.id ? " is-commenting" : ""}`);
     row.dataset.id = node.id;
-    row.addEventListener("click", () => selectId(node.id));
+    row.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      selectId(node.id);
+    });
 
     const nameCol = el("div", "fa-col-name");
     nameCol.appendChild(el("span", "fa-prefix", flat.prefix));

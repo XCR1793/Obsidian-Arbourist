@@ -157,6 +157,7 @@ export default class FolderArchitectPlugin extends Plugin {
       if (!query) continue;
       embed.classList.add("arbourist-embed");
       embed.classList.remove("is-unresolved", "mod-empty");
+      embed.removeAttribute("href");
       const child = new FolderEmbed(embed, this, query, sourcePath, src);
       this.folderEmbeds.add(child);
       if (ctx) ctx.addChild(child);

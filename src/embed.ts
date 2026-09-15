@@ -37,6 +37,7 @@ export function shouldHijackEmbed(plugin: FolderArchitectPlugin, src: string, so
 
 export class FolderEmbed extends MarkdownRenderChild {
   private mount: ReturnType<typeof mountArchitect> | null = null;
+  private swallowClicks = false;
 
   constructor(
     containerEl: HTMLElement,
@@ -52,6 +53,7 @@ export class FolderEmbed extends MarkdownRenderChild {
     try {
       this.mount?.destroy();
       this.mount = null;
+      this.ignoreEmbedNavigation();
       if (this.query.display === "static") {
         await this.bakeStatic();
         return;
@@ -172,6 +174,20 @@ export class FolderEmbed extends MarkdownRenderChild {
       linkFiles: this.query.links,
     });
     return asciiFromDoc(doc);
+  }
+
+  private ignoreEmbedNavigation(): void {
+    if (this.swallowClicks) return;
+    this.swallowClicks = true;
+    const prevent = (event: Event) => event.preventDefault();
+    const stop = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    for (const type of ["click", "auxclick", "dblclick"] as const) {
+      this.containerEl.addEventListener(type, prevent, true);
+      this.containerEl.addEventListener(type, stop);
+    }
   }
 
   private showBaked(ascii: string): void {
