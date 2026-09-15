@@ -128,7 +128,7 @@ interface ElectronDialog {
 }
 
 function loadNodeModule<T>(id: string): T | null {
-  const req = (globalThis as { require?: (name: string) => T }).require;
+  const req = (window as unknown as { require?: (name: string) => T }).require;
   if (typeof req !== "function") return null;
   try {
     return req(id);

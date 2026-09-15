@@ -1,3 +1,4 @@
+import type {} from "obsidian";
 import { toAsciiDoc } from "./ascii";
 import { detachToSnapshot } from "./merge";
 import {
@@ -58,10 +59,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
   className?: string,
   text?: string,
 ): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
+  return createEl(tag, {
+    ...(className ? { cls: className } : {}),
+    ...(text != null ? { text } : {}),
+  });
 }
 
 function iconButton(label: string, extraClass = ""): HTMLButtonElement {
@@ -553,7 +554,7 @@ export function mountArchitect(
     linkCheck.addEventListener("change", () => {
       draft.linkFiles = linkCheck.checked;
     });
-    linkLabel.append(linkCheck, document.createTextNode(" Create wikilinks for files (vault only, optional)"));
+    linkLabel.append(linkCheck, createEl("span", { text: " Create wikilinks for files (vault only, optional)" }));
     linkRow.appendChild(linkLabel);
 
     const modeRow = el("div", "fa-field");

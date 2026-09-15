@@ -30,7 +30,12 @@ export class ArchitectSettingTab extends PluginSettingTab {
       {
         name: "Blueprints folder",
         desc: "New blueprints are created here.",
-        control: { type: "text", key: "blueprintsFolder" },
+        control: {
+          type: "text",
+          key: "blueprintsFolder",
+          defaultValue: "Blueprints",
+          validate: (value: string) => (value.trim() ? undefined : "Enter a folder name."),
+        },
       },
       {
         name: "Import files by default",
@@ -50,19 +55,9 @@ export class ArchitectSettingTab extends PluginSettingTab {
     ];
   }
 
-  async setControlValue(key: string, value: unknown): Promise<void> {
-    await super.setControlValue(key, value);
-    if (key === "blueprintsFolder") {
-      const next = typeof value === "string" ? value.trim() : "";
-      this.plugin.settings.blueprintsFolder = next || "Blueprints";
-    }
-    await this.plugin.saveSettings();
-  }
-
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("Arbourist").setHeading();
 
     new Setting(containerEl)
       .setName("Blueprints folder")

@@ -8,6 +8,17 @@ const { window, document } = parseHTML("<!doctype html><html><body></body></html
 Object.defineProperty(globalThis, "window", { value: window, configurable: true });
 Object.defineProperty(globalThis, "document", { value: document, configurable: true });
 Object.defineProperty(globalThis, "HTMLElement", { value: window.HTMLElement, configurable: true });
+function testCreateEl(tag: string, o?: string | { cls?: string; text?: string }): HTMLElement {
+  const node = document.createElement(tag);
+  if (typeof o === "string") node.className = o;
+  else if (o) {
+    if (o.cls) node.className = o.cls;
+    if (o.text != null) node.textContent = o.text;
+  }
+  return node;
+}
+(globalThis as { createEl?: typeof testCreateEl }).createEl = testCreateEl;
+(window as { createEl?: typeof testCreateEl }).createEl = testCreateEl;
 try {
   Object.defineProperty(globalThis, "navigator", {
     value: { clipboard: { async writeText() {} } },
