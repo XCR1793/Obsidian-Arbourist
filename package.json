@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-arbourist",
+  "version": "0.1.0",
+  "description": "Design folder structures in Obsidian notes: live trees, snapshots, comments, and baked static views.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node esbuild.config.mjs test && node tests/run.cjs && node tests/ui-run.cjs"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "folders"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "esbuild": "0.25.5",
+    "linkedom": "^0.18.13",
+    "obsidian": "latest",
+    "typescript": "^5.8.3"
+  }
+}
