@@ -1,5 +1,4 @@
-import { existsSync, promises as fs } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, existsSync, joinPaths, readDirEntries } from "arbourist-node-io";
 import { buildTreeFromLister, DEFAULT_SCAN, type DirEntry, type ScanOptions } from "./scan-core";
 import type { ArchNode } from "./model";
 
@@ -18,11 +17,11 @@ export async function scanFsFolder(absPath: string, options: Partial<ScanOptions
   const rootName = basename(absPath.replace(/[\\/]+$/, "")) || absPath;
   return buildTreeFromLister(rootName, rootName, async (rel): Promise<DirEntry[]> => {
     const suffix = rel === rootName ? "" : rel.slice(rootName.length).replace(/^[/\\]/, "");
-    const full = suffix ? join(absPath, suffix) : absPath;
-    const names = await fs.readdir(full, { withFileTypes: true });
+    const full = suffix ? joinPaths(absPath, suffix) : absPath;
+    const names = await readDirEntries(full);
     return names.map((entry) => ({
       name: entry.name,
-      isDirectory: entry.isDirectory(),
+      isDirectory: entry.isDirectory,
     }));
   }, opts);
 }

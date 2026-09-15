@@ -555,7 +555,7 @@ export function mountArchitect(
       draft.linkFiles = linkCheck.checked;
     });
     linkLabel.append(linkCheck);
-    linkLabel.createEl("span", { text: " Create wikilinks for files (vault only, optional)" });
+    linkLabel.createSpan({ text: " Create wikilinks for files (vault only, optional)" });
     linkRow.appendChild(linkLabel);
 
     const modeRow = el("div", "fa-field");

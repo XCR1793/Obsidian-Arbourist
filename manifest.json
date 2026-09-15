@@ -1,7 +1,7 @@
 {
   "id": "arbourist",
   "name": "Arbourist",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "minAppVersion": "1.8.0",
   "description": "Design folder structures in a note. Import a live folder or a snapshot, add comments, and bake a static tree.",
   "author": "XCR1793",

@@ -27,6 +27,14 @@ Object.defineProperty(window.HTMLElement.prototype, "createEl", {
     return node;
   },
 });
+Object.defineProperty(window.HTMLElement.prototype, "createSpan", {
+  configurable: true,
+  value(this: HTMLElement, o?: string | { cls?: string; text?: string }) {
+    const node = testCreateEl("span", o);
+    this.appendChild(node);
+    return node;
+  },
+});
 try {
   Object.defineProperty(globalThis, "navigator", {
     value: { clipboard: { async writeText() {} } },
