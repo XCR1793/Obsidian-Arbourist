@@ -1,5 +1,6 @@
 import { parseHTML } from "linkedom";
 import assert from "node:assert/strict";
+import { hideFollowingBake } from "../src/hide-static";
 import { emptyDoc } from "../src/model";
 import { docFromImport, treeFromRelativePaths } from "../src/scan-core";
 import { mountArchitect, type ImportDraft } from "../src/ui";
@@ -138,4 +139,23 @@ function testUi() {
   console.log("ok  ui empty, add, describe, import modal, live lock, clone");
 }
 
+function testHideStaticFence() {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `
+    <div class="el-p"><p><span class="internal-embed arbourist-embed is-static-bake"><pre class="fa-baked">tree</pre></span></p></div>
+    <div class="el-pre"><pre><code class="language-arbourist-static">tree</code></pre></div>
+  `;
+  document.body.appendChild(wrap);
+  const embed = wrap.querySelector(".internal-embed");
+  assert.ok(embed);
+  hideFollowingBake(embed as HTMLElement);
+  const store = wrap.querySelector(".el-pre") as HTMLElement | null;
+  assert.ok(store);
+  assert.equal(store.hidden, true);
+  assert.equal(store.classList.contains("fa-static-store"), true);
+  wrap.remove();
+  console.log("ok  hide reading-view static fence after embed");
+}
+
 testUi();
+testHideStaticFence();

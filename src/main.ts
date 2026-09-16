@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { FolderEmbed, shouldHijackEmbed } from "./embed";
+import { hideBakedStoresIn, hideStaticStoreElement } from "./hide-static";
 import { type ArchitectDoc } from "./model";
 import { pickBlueprintFile, pickVaultFolder } from "./modals";
 import { importDraftToDoc, pickComputerFolder, refreshLiveDoc } from "./obsidian-import";
@@ -53,7 +54,13 @@ export default class FolderArchitectPlugin extends Plugin {
       void this.renderBlock(source, el, ctx.sourcePath);
     });
 
+    this.registerMarkdownCodeBlockProcessor("arbourist-static", (_source, el) => {
+      el.empty();
+      hideStaticStoreElement(el);
+    });
+
     this.registerMarkdownPostProcessor((el, ctx) => {
+      hideBakedStoresIn(el);
       this.renderFolderEmbeds(el, ctx.sourcePath, ctx);
     });
 
@@ -213,6 +220,7 @@ export default class FolderArchitectPlugin extends Plugin {
     this.scanTimer = window.setTimeout(() => {
       this.scanTimer = null;
       const file = this.app.workspace.getActiveFile()?.path ?? "";
+      hideBakedStoresIn(document.body);
       this.renderFolderEmbeds(document.body, file);
     }, 50);
   }

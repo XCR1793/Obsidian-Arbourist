@@ -5,6 +5,7 @@ import { parseEmbedQuery, normalizeVaultPath, type EmbedQuery } from "./query";
 import { docFromImport } from "./scan-core";
 import { scanVaultFolder } from "./obsidian-import";
 import { extractBlocks } from "./serialize";
+import { hideFollowingBake, hideBakedStoresIn } from "./hide-static";
 import { asciiFromDoc, findBakedAscii, findLegacyStaticDoc } from "./static-store";
 import { mountArchitect } from "./ui";
 import type FolderArchitectPlugin from "./main";
@@ -286,7 +287,13 @@ export class FolderEmbed extends MarkdownRenderChild {
     this.containerEl.empty();
     this.containerEl.createEl("pre", { cls: "fa-baked", text: ascii });
     this.containerEl.classList.add("arbourist-embed", "is-static-bake");
-    window.requestAnimationFrame(() => hideFollowingBake(this.containerEl));
+    const hide = () => {
+      hideFollowingBake(this.containerEl);
+      hideBakedStoresIn(this.containerEl.ownerDocument ?? document);
+    };
+    hide();
+    window.requestAnimationFrame(hide);
+    window.setTimeout(hide, 80);
   }
 
   onunload(): void {
@@ -311,40 +318,3 @@ function shapeDocForEmbed(doc: ArchitectDoc, query: EmbedQuery): ArchitectDoc {
   return next;
 }
 
-function hideFollowingBake(el: HTMLElement): void {
-  const hosts = [el, el.closest(".internal-embed"), el.closest("p"), el.closest(".cm-embed-block")].filter(
-    (node): node is HTMLElement => Boolean(node),
-  );
-  for (const host of hosts) {
-    let sib: Element | null = host.nextElementSibling;
-    for (let i = 0; i < 6 && sib; i += 1) {
-      const pre = sib.matches("pre") ? sib : sib.querySelector("pre");
-      const lang = pre?.querySelector("code")?.className ?? "";
-      if (pre && lang.includes("arbourist-static")) {
-        sib.classList.add("fa-static-store");
-        (sib as HTMLElement).hidden = true;
-        (pre as HTMLElement).hidden = true;
-        return;
-      }
-      if (/\b(HyperMD-codeblock|cm-hmd-codeblock)\b/.test(sib.className)) {
-        const start = sib;
-        const chunk: HTMLElement[] = [];
-        let cur: Element | null = sib;
-        while (cur && /\b(HyperMD-codeblock|cm-hmd-codeblock)\b/.test(cur.className)) {
-          chunk.push(cur as HTMLElement);
-          cur = cur.nextElementSibling;
-        }
-        if (chunk.some((node) => (node.textContent ?? "").includes("arbourist-static"))) {
-          for (const node of chunk) {
-            node.classList.add("fa-static-store");
-            node.hidden = true;
-          }
-          start.classList.add("fa-static-store");
-        }
-        return;
-      }
-      if ((sib.textContent ?? "").trim()) break;
-      sib = sib.nextElementSibling;
-    }
-  }
-}

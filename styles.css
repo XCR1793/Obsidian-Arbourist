@@ -325,7 +325,8 @@
   display: block;
 }
 
-.fa-static-store {
+.fa-static-store,
+.block-language-arbourist-static {
   display: none;
 }
 
