@@ -19,6 +19,7 @@ import {
   locate,
   moveNode,
   outdentNode,
+  relocateNode,
 } from "../src/tree-ops";
 
 function test(name: string, fn: () => void | Promise<void>) {
@@ -59,6 +60,25 @@ const tests = [
     assert.equal(roots[0]?.name, "tests");
     assert.equal(deleteNode(roots, file.id), true);
     assert.equal(locate(roots, file.id), null);
+  }),
+
+  test("relocateNode moves folders with children between trees", () => {
+    const roots: ArchNode[] = [];
+    const lib = addChild(roots, null, "folder", "Library");
+    const extra = addChild(roots, null, "folder", "Extra");
+    assert.ok(lib && extra);
+    const fn = addChild(roots, lib.id, "folder", "Functions");
+    assert.ok(fn);
+    addChild(roots, fn.id, "file", "Motor.m");
+    const lone = addChild(roots, extra.id, "file", "Notes.md");
+    assert.ok(lone);
+    assert.equal(relocateNode(roots, fn.id, extra.id, "inside"), true);
+    assert.equal(lib.children.length, 0);
+    assert.equal(extra.children.map((n) => n.name).join(","), "Notes.md,Functions");
+    assert.equal(extra.children[1]?.children[0]?.name, "Motor.m");
+    assert.equal(relocateNode(roots, extra.id, fn.id, "inside"), false);
+    assert.equal(relocateNode(roots, lone.id, lib.id, "before"), true);
+    assert.equal(roots.map((n) => n.name).join(","), "Notes.md,Library,Extra");
   }),
 
   test("visible rows use ascii branch prefixes", () => {

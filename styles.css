@@ -147,6 +147,37 @@
   padding: 0 4px;
 }
 
+.fa-drag {
+  flex: none;
+  cursor: grab;
+  color: var(--fa-muted);
+  user-select: none;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.fa-drag:active {
+  cursor: grabbing;
+}
+
+.fa-row.is-dragging {
+  opacity: 0.45;
+}
+
+.fa-row.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--fa-accent);
+}
+
+.fa-row.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--fa-accent);
+}
+
+.fa-row.is-drop-inside {
+  outline: 1px dashed var(--fa-accent);
+  outline-offset: -1px;
+}
+
 .fa-row.is-selected,
 .fa-row:hover {
   background: var(--background-modifier-hover);

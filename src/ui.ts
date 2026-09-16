@@ -18,6 +18,8 @@ import {
   indentNode,
   moveNode,
   outdentNode,
+  relocateNode,
+  type DropPlace,
 } from "./tree-ops";
 
 export interface ImportDraft {
@@ -81,6 +83,7 @@ export function mountArchitect(
 ): { update(doc: ArchitectDoc): void; getDoc(): ArchitectDoc; destroy(): void } {
   let doc = initial;
   let selectedId: string | null = null;
+  let draggingId: string | null = null;
   let commentingId: string | null = null;
   let destroyed = false;
   let modalOpen = false;
@@ -99,6 +102,24 @@ export function mountArchitect(
 
   const isLive = () => doc.mode === "live";
   const structuralLocked = () => isLive();
+
+  const clearDropMarks = () => {
+    container.querySelectorAll(".fa-row").forEach((row) => {
+      row.classList.remove("is-drop-before", "is-drop-after", "is-drop-inside", "is-dragging");
+      delete (row as HTMLElement).dataset.dropPlace;
+    });
+  };
+
+  const dropPlaceAt = (row: HTMLElement, clientY: number, type: "folder" | "file"): DropPlace => {
+    const rect = row.getBoundingClientRect();
+    const y = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
+    if (type === "folder") {
+      if (y < 0.28) return "before";
+      if (y > 0.72) return "after";
+      return "inside";
+    }
+    return y < 0.5 ? "before" : "after";
+  };
 
   const paint = (focusNameId?: string, focusCommentId?: string) => {
     if (destroyed) return;
@@ -257,6 +278,59 @@ export function mountArchitect(
       selectId(node.id);
     });
 
+    if (board.chrome === "editor" && !structuralLocked()) {
+      const grip = el("span", "fa-drag", "⠿");
+      grip.title = "Drag to move. Folders keep their files. Drop onto a folder to nest, or the top/bottom of a row to place beside it.";
+      grip.draggable = true;
+      grip.addEventListener("dragstart", (event) => {
+        event.stopPropagation();
+        draggingId = node.id;
+        event.dataTransfer?.setData("text/plain", node.id);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        row.classList.add("is-dragging");
+      });
+      grip.addEventListener("dragend", () => {
+        draggingId = null;
+        clearDropMarks();
+      });
+      row.appendChild(grip);
+
+      row.addEventListener("dragover", (event) => {
+        if (!draggingId || draggingId === node.id) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        const place = dropPlaceAt(row, event.clientY, node.type);
+        container.querySelectorAll(".fa-row").forEach((item) => {
+          if (item === row) return;
+          item.classList.remove("is-drop-before", "is-drop-after", "is-drop-inside");
+          delete (item as HTMLElement).dataset.dropPlace;
+        });
+        row.classList.remove("is-drop-before", "is-drop-after", "is-drop-inside");
+        row.classList.add(`is-drop-${place}`);
+        row.dataset.dropPlace = place;
+      });
+      row.addEventListener("dragleave", (event) => {
+        if (row.contains(event.relatedTarget as Node | null)) return;
+        row.classList.remove("is-drop-before", "is-drop-after", "is-drop-inside");
+        delete row.dataset.dropPlace;
+      });
+      row.addEventListener("drop", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const from = event.dataTransfer?.getData("text/plain") || draggingId;
+        const place = (row.dataset.dropPlace as DropPlace | undefined) ?? dropPlaceAt(row, event.clientY, node.type);
+        draggingId = null;
+        clearDropMarks();
+        if (!from) return;
+        if (relocateNode(doc.roots, from, node.id, place)) {
+          selectedId = from;
+          emit(true);
+          paint(from);
+        }
+      });
+    }
+
     const nameCol = el("div", "fa-col-name");
     nameCol.appendChild(el("span", "fa-prefix", flat.prefix));
 
@@ -398,26 +472,6 @@ export function mountArchitect(
 
     if (board.chrome === "editor") {
       const actions = el("div", "fa-col-actions");
-      const up = iconButton("↑", "fa-tiny");
-      up.title = "Move up (Alt+Up)";
-      up.disabled = structuralLocked();
-      up.addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (moveNode(doc.roots, node.id, "up")) {
-          emit(true);
-          paint(node.id);
-        }
-      });
-      const down = iconButton("↓", "fa-tiny");
-      down.title = "Move down (Alt+Down)";
-      down.disabled = structuralLocked();
-      down.addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (moveNode(doc.roots, node.id, "down")) {
-          emit(true);
-          paint(node.id);
-        }
-      });
       const del = iconButton("Delete", "fa-tiny fa-danger");
       del.disabled = structuralLocked() && !node.missing;
       del.addEventListener("click", (event) => {
@@ -428,7 +482,7 @@ export function mountArchitect(
           paint();
         }
       });
-      actions.append(up, down, del);
+      actions.append(del);
       row.appendChild(actions);
     }
 

@@ -74,6 +74,35 @@ export function moveNode(roots: ArchNode[], id: string, direction: "up" | "down"
   return true;
 }
 
+export type DropPlace = "before" | "after" | "inside";
+
+function containsNode(ancestor: ArchNode, node: ArchNode): boolean {
+  for (const child of ancestor.children) {
+    if (child === node || containsNode(child, node)) return true;
+  }
+  return false;
+}
+
+export function relocateNode(roots: ArchNode[], id: string, targetId: string, place: DropPlace): boolean {
+  if (id === targetId) return false;
+  const moving = locate(roots, id);
+  const target = locate(roots, targetId);
+  if (!moving || !target) return false;
+  if (containsNode(moving.node, target.node)) return false;
+  if (place === "inside" && target.node.type !== "folder") return false;
+
+  moving.siblings.splice(moving.index, 1);
+  const dest = locate(roots, targetId);
+  if (!dest) return false;
+  if (place === "inside") {
+    dest.node.children.push(moving.node);
+    dest.node.collapsed = false;
+    return true;
+  }
+  dest.siblings.splice(place === "before" ? dest.index : dest.index + 1, 0, moving.node);
+  return true;
+}
+
 export function indentNode(roots: ArchNode[], id: string): boolean {
   const found = locate(roots, id);
   if (!found || found.index === 0) return false;
