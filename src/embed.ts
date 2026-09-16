@@ -1,9 +1,10 @@
 import { MarkdownRenderChild, TFile, TFolder } from "obsidian";
-import { applyAnnotation } from "./model";
+import { applyAnnotation, cloneDoc, type ArchNode, type ArchitectDoc } from "./model";
 import { filterTree } from "./filter";
 import { parseEmbedQuery, normalizeVaultPath, type EmbedQuery } from "./query";
 import { docFromImport } from "./scan-core";
 import { scanVaultFolder } from "./obsidian-import";
+import { extractBlocks } from "./serialize";
 import { asciiFromDoc, findBakedAscii, findLegacyStaticDoc } from "./static-store";
 import { mountArchitect } from "./ui";
 import type FolderArchitectPlugin from "./main";
@@ -24,20 +25,39 @@ export function resolveVaultFolder(plugin: FolderArchitectPlugin, path: string, 
   return null;
 }
 
+export function resolveVaultNote(plugin: FolderArchitectPlugin, path: string, sourcePath: string): TFile | null {
+  const direct = normalizeVaultPath(path).replace(/\.md$/i, "");
+  if (!direct) return null;
+  const fromLink = plugin.app.metadataCache.getFirstLinkpathDest(direct, sourcePath);
+  if (fromLink instanceof TFile && fromLink.extension === "md") return fromLink;
+  const dir = sourcePath.includes("/") ? sourcePath.split("/").slice(0, -1).join("/") : "";
+  const candidates = [direct, `${direct}.md`];
+  if (dir) candidates.push(`${dir}/${direct}`, `${dir}/${direct}.md`);
+  for (const candidate of candidates) {
+    const file = plugin.app.vault.getAbstractFileByPath(candidate);
+    if (file instanceof TFile && file.extension === "md") return file;
+  }
+  return null;
+}
+
 export function shouldHijackEmbed(plugin: FolderArchitectPlugin, src: string, sourcePath: string): EmbedQuery | null {
   const query = parseEmbedQuery(src.split("|")[0] ?? src);
   if (!query) return null;
+  const note = resolveVaultNote(plugin, query.path, sourcePath);
+  if (note && note.path !== sourcePath && plugin.isBlueprintNote(note)) return query;
+  if (note && query.explicit && note.path !== sourcePath) return query;
   if (query.display === "static" && query.explicit) return query;
   const folder = resolveVaultFolder(plugin, query.path, sourcePath);
   if (!folder) return null;
-  const asFile = plugin.app.metadataCache.getFirstLinkpathDest(query.path, sourcePath);
-  if (asFile instanceof TFile && !query.explicit) return null;
+  if (note && !query.explicit) return null;
   return query;
 }
 
 export class FolderEmbed extends MarkdownRenderChild {
   private mount: ReturnType<typeof mountArchitect> | null = null;
   private swallowClicks = false;
+  private watchedPath: string | null = null;
+  private remountTimer: number | null = null;
 
   constructor(
     containerEl: HTMLElement,
@@ -50,7 +70,20 @@ export class FolderEmbed extends MarkdownRenderChild {
   }
 
   onload(): void {
+    this.registerEvent(
+      this.plugin.app.vault.on("modify", (file) => {
+        if (file instanceof TFile && file.path === this.watchedPath) this.queueRemount();
+      }),
+    );
     void this.mountEmbed();
+  }
+
+  private queueRemount(): void {
+    if (this.remountTimer != null) window.clearTimeout(this.remountTimer);
+    this.remountTimer = window.setTimeout(() => {
+      this.remountTimer = null;
+      void this.mountEmbed();
+    }, 80);
   }
 
   private async mountEmbed(): Promise<void> {
@@ -58,6 +91,22 @@ export class FolderEmbed extends MarkdownRenderChild {
       this.mount?.destroy();
       this.mount = null;
       this.ignoreEmbedNavigation();
+      const note = resolveVaultNote(this.plugin, this.query.path, this.sourcePath);
+      if (note && note.path !== this.sourcePath) {
+        const markdown = await this.plugin.app.vault.cachedRead(note);
+        const block = extractBlocks(markdown)[0];
+        if (block) {
+          this.plugin.rememberBlueprint(note.path);
+          this.watchedPath = note.path;
+          if (this.query.display === "static") {
+            await this.bakeStaticFromDoc(shapeDocForEmbed(block.doc, this.query));
+            return;
+          }
+          this.mountBlueprint(shapeDocForEmbed(block.doc, this.query));
+          return;
+        }
+      }
+      this.watchedPath = null;
       if (this.query.display === "static") {
         await this.bakeStatic();
         return;
@@ -122,6 +171,41 @@ export class FolderEmbed extends MarkdownRenderChild {
     }
   }
 
+  private mountBlueprint(doc: ArchitectDoc): void {
+    this.containerEl.replaceChildren();
+    this.containerEl.classList.add("arbourist-embed");
+    this.mount = mountArchitect(
+      this.containerEl,
+      doc,
+      {
+        onChange: () => {},
+        onImport: async () => {},
+        onRefresh: async () => {
+          await this.mountEmbed();
+        },
+      },
+      {
+        canPickVault: false,
+        canPickFs: false,
+        onOpenLink: (link) => {
+          const dest = this.plugin.app.metadataCache.getFirstLinkpathDest(link, this.sourcePath);
+          if (dest) void this.plugin.app.workspace.getLeaf(false).openFile(dest);
+        },
+      },
+      {
+        chrome: "embed",
+        comments: this.query.comments ? "click" : "off",
+        namesEditable: false,
+      },
+    );
+  }
+
+  private async bakeStaticFromDoc(doc: ArchitectDoc): Promise<void> {
+    const ascii = asciiFromDoc(doc);
+    await this.plugin.bakeStaticEmbed(this.sourcePath, this.embedSrc, ascii);
+    this.showBaked(ascii);
+  }
+
   private async bakeStatic(): Promise<void> {
     const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
     const markdown = file instanceof TFile ? await this.plugin.app.vault.read(file) : "";
@@ -151,6 +235,16 @@ export class FolderEmbed extends MarkdownRenderChild {
   private async pullStaticAscii(markdown: string): Promise<string | null> {
     const legacy = findLegacyStaticDoc(markdown, this.embedSrc);
     if (legacy && !this.query.refresh) return asciiFromDoc(legacy);
+
+    const note = resolveVaultNote(this.plugin, this.query.path, this.sourcePath);
+    if (note) {
+      const noteMarkdown = await this.plugin.app.vault.cachedRead(note);
+      const block = extractBlocks(noteMarkdown)[0];
+      if (block) {
+        this.plugin.rememberBlueprint(note.path);
+        return asciiFromDoc(shapeDocForEmbed(block.doc, this.query));
+      }
+    }
 
     const folder = resolveVaultFolder(this.plugin, this.query.path, this.sourcePath);
     if (!folder) return legacy ? asciiFromDoc(legacy) : null;
@@ -196,9 +290,25 @@ export class FolderEmbed extends MarkdownRenderChild {
   }
 
   onunload(): void {
+    if (this.remountTimer != null) window.clearTimeout(this.remountTimer);
     this.mount?.destroy();
     this.mount = null;
   }
+}
+
+function dropFiles(nodes: ArchNode[]): ArchNode[] {
+  return nodes
+    .filter((node) => node.type === "folder")
+    .map((node) => ({ ...node, children: dropFiles(node.children) }));
+}
+
+function shapeDocForEmbed(doc: ArchitectDoc, query: EmbedQuery): ArchitectDoc {
+  const next = cloneDoc(doc);
+  if (!query.files) next.roots = dropFiles(next.roots);
+  if (query.filter || query.ext) {
+    next.roots = next.roots.map((root) => filterTree(root, query.filter, query.ext));
+  }
+  return next;
 }
 
 function hideFollowingBake(el: HTMLElement): void {

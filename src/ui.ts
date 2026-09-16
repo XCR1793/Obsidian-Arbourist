@@ -11,6 +11,7 @@ import {
 } from "./model";
 import {
   addChild,
+  addSibling,
   collapseAll,
   deleteNode,
   dismissMissing,
@@ -42,6 +43,7 @@ export interface ArchitectHandlers {
   onChange: (doc: ArchitectDoc, immediate: boolean) => void;
   onImport: (draft: ImportDraft) => Promise<void> | void;
   onRefresh?: () => Promise<void> | void;
+  onSave?: () => Promise<void> | void;
 }
 
 export interface BoardOptions {
@@ -220,6 +222,14 @@ export function mountArchitect(
     });
 
     left.append(addFolder, addFile, importBtn, refreshBtn, cloneBtn);
+    if (handlers.onSave) {
+      const saveBtn = iconButton("Save", "mod-cta");
+      saveBtn.title = "Save this blueprint as a note in a folder you choose";
+      saveBtn.addEventListener("click", () => {
+        void handlers.onSave?.();
+      });
+      left.append(saveBtn);
+    }
     right.append(collapseBtn, expandBtn, copyBtn);
     bar.append(left, right);
     return bar;
@@ -385,7 +395,7 @@ export function mountArchitect(
           }
         } else if (event.key === "Enter" && !structuralLocked()) {
           event.preventDefault();
-          const created = addChild(doc.roots, node.type === "folder" ? node.id : selectedParentId(), "folder");
+          const created = addSibling(doc.roots, node.id, "folder");
           if (created) {
             selectedId = created.id;
             emit(true);
@@ -476,6 +486,14 @@ export function mountArchitect(
       del.disabled = structuralLocked() && !node.missing;
       del.addEventListener("click", (event) => {
         event.stopPropagation();
+        if (node.type === "folder" && node.children.length > 0) {
+          const inside = countNodes(node.children);
+          const parts: string[] = [];
+          if (inside.folders) parts.push(`${inside.folders} folder${inside.folders === 1 ? "" : "s"}`);
+          if (inside.files) parts.push(`${inside.files} file${inside.files === 1 ? "" : "s"}`);
+          const ok = window.confirm(`Delete “${node.name}” and everything inside it (${parts.join(" and ")})?`);
+          if (!ok) return;
+        }
         if (deleteNode(doc.roots, node.id)) {
           if (selectedId === node.id) selectedId = null;
           emit(true);

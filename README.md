@@ -48,11 +48,19 @@ Command **Insert folder embed** inserts one of these for a folder you pick.
 
 A blueprint is a note you can rearrange before anything exists on disk.
 
-- Ribbon or command **New blueprint** — empty tree.
+- Ribbon or command **New blueprint** — empty unsaved tree. **Save** chooses a folder and file name; the button disappears once the note exists.
 - **Import folder into a new blueprint** — snapshot (editable copy) or live view.
 - Snapshot can include folders only, or every file. Wikilinks are optional and only for files that already live in the vault.
 
-Blueprints are stored as an `arbourist` code block in the note. Open the note in Arbourist to edit the tree with buttons.
+Blueprints are stored as an `arbourist` code block in the note. Open the note in Arbourist to edit the tree with buttons. That note **is** the save — there is no separate database.
+
+Include a blueprint in another note (live: edits to the blueprint update every include):
+
+```markdown
+![[Blueprints/Untitled blueprint, display:live, comments:enable]]
+```
+
+Command **Insert blueprint embed** inserts that line for a blueprint you pick.
 
 ## Settings
 

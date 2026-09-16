@@ -1,11 +1,11 @@
 import { Notice, Plugin, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { FolderEmbed, shouldHijackEmbed } from "./embed";
-import { emptyDoc, type ArchitectDoc } from "./model";
-import { pickVaultFolder } from "./modals";
+import { type ArchitectDoc } from "./model";
+import { pickBlueprintFile, pickVaultFolder } from "./modals";
 import { importDraftToDoc, pickComputerFolder, refreshLiveDoc } from "./obsidian-import";
 import { toEmbedMarkdown } from "./query";
 import { bakeStaticIntoMarkdown } from "./static-store";
-import { newBlueprintMarkdown, parseDoc, stringifyDoc, upsertArchitectBlock } from "./serialize";
+import { extractBlocks, parseDoc, stringifyDoc, upsertArchitectBlock } from "./serialize";
 import { ArchitectSettingTab, DEFAULT_SETTINGS, type ArchitectSettings } from "./settings";
 import { mountArchitect, type ImportDraft } from "./ui";
 import { ArchitectView, VIEW_TYPE } from "./view";
@@ -15,6 +15,7 @@ export default class FolderArchitectPlugin extends Plugin {
   private folderEmbeds = new Set<FolderEmbed>();
   private scanTimer: number | null = null;
   private staticWrites = new Set<string>();
+  private blueprintNotes = new Set<string>();
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -87,6 +88,55 @@ export default class FolderArchitectPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "insert-blueprint-embed",
+      name: "Insert blueprint embed",
+      editorCallback: (editor) => {
+        void (async () => {
+          const file = await pickBlueprintFile(this.app, this.listBlueprintNotes());
+          if (!file) {
+            new Notice("Create a blueprint first (ribbon or New blueprint).");
+            return;
+          }
+          const path = file.path.replace(/\.md$/i, "");
+          editor.replaceSelection(
+            toEmbedMarkdown({
+              path,
+              display: "live",
+              comments: true,
+              files: true,
+              links: false,
+              depth: this.settings.maxDepth,
+              filter: "",
+              ext: "",
+              refresh: false,
+              explicit: true,
+            }),
+          );
+        })();
+      },
+    });
+
+    this.app.workspace.onLayoutReady(() => {
+      void this.indexBlueprints();
+    });
+    this.registerEvent(
+      this.app.vault.on("modify", (file) => {
+        if (file instanceof TFile && file.extension === "md") void this.refreshBlueprintIndex(file);
+      }),
+    );
+    this.registerEvent(
+      this.app.vault.on("delete", (file) => {
+        if (file instanceof TFile) this.blueprintNotes.delete(file.path);
+      }),
+    );
+    this.registerEvent(
+      this.app.vault.on("rename", (file, oldPath) => {
+        this.blueprintNotes.delete(oldPath);
+        if (file instanceof TFile && file.extension === "md") void this.refreshBlueprintIndex(file);
+      }),
+    );
+
     this.addSettingTab(new ArchitectSettingTab(this.app, this));
   }
 
@@ -101,6 +151,35 @@ export default class FolderArchitectPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  rememberBlueprint(path: string): void {
+    this.blueprintNotes.add(path);
+  }
+
+  isBlueprintNote(file: TFile): boolean {
+    return file.extension === "md" && this.blueprintNotes.has(file.path);
+  }
+
+  listBlueprintNotes(): TFile[] {
+    const files = this.app.vault.getMarkdownFiles().filter((file) => this.isBlueprintNote(file));
+    return files.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  private async indexBlueprints(): Promise<void> {
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      await this.refreshBlueprintIndex(file);
+    }
+  }
+
+  private async refreshBlueprintIndex(file: TFile): Promise<void> {
+    try {
+      const markdown = await this.app.vault.cachedRead(file);
+      if (extractBlocks(markdown).length > 0) this.blueprintNotes.add(file.path);
+      else this.blueprintNotes.delete(file.path);
+    } catch {
+      // ignore unreadable notes
+    }
   }
 
   getFolderComments(folderPath: string): Record<string, string> {
@@ -165,29 +244,17 @@ export default class FolderArchitectPlugin extends Plugin {
     }
   }
 
-  async createBlueprint(opts?: { openImport?: boolean }): Promise<TFile> {
-    const folder = this.settings.blueprintsFolder;
-    if (folder && !(this.app.vault.getAbstractFileByPath(folder) instanceof TFolder)) {
-      await this.app.vault.createFolder(folder);
-    }
-    const prefix = folder ? `${folder}/` : "";
-    let index = 1;
-    let path = `${prefix}Untitled blueprint.md`;
-    while (this.app.vault.getAbstractFileByPath(path)) {
-      index += 1;
-      path = `${prefix}Untitled blueprint ${index}.md`;
-    }
-    const doc = emptyDoc({
-      title: "Untitled blueprint",
-      includeFiles: this.settings.defaultIncludeFiles,
-      linkFiles: this.settings.defaultLinkFiles,
+  async createBlueprint(opts?: { openImport?: boolean }): Promise<void> {
+    const leaf = this.app.workspace.getLeaf(true);
+    await leaf.setViewState({
+      type: VIEW_TYPE,
+      active: true,
+      state: { file: null },
     });
-    const file = await this.app.vault.create(path, newBlueprintMarkdown(doc));
-    await this.openInView(file);
+    await this.app.workspace.revealLeaf(leaf);
     if (opts?.openImport) {
       new Notice("Use Import folder in the toolbar to load a snapshot or live view.");
     }
-    return file;
   }
 
   async openInView(file: TFile): Promise<void> {
